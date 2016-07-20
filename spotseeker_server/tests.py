@@ -19,6 +19,7 @@ import spotseeker_server.test.long_message
 from spotseeker_server.test.buildings import BuildingTest
 from spotseeker_server.test.models import SpotModelToStringTests
 from spotseeker_server.test.spot_form import DefaultSpotFormTest
+from spotseeker_server.test.models import SpotExtendedInfoTests
 from spotseeker_server.test.spot_model import SpotModelTest
 from spotseeker_server.test.spot_put import SpotPUTTest
 from spotseeker_server.test.spot_delete import SpotDELETETest
