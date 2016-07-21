@@ -29,6 +29,7 @@ from spotseeker_server.default_forms.item import DefaultItemExtendedInfoForm \
                                                 as ItemExtendedInfoForm
 from spotseeker_server.models import *
 from django.http import HttpResponse
+from django.utils.dateparse import parse_datetime
 from spotseeker_server.require_auth import *
 from django.db import transaction
 import simplejson as json
@@ -58,17 +59,54 @@ def _build_extended_info(sender, **kwargs):
     spot = kwargs['spot']
     stash = kwargs['stash']
 
-    new_extended_info = json_values.pop('extended_info', None)
-    if new_extended_info is not None:
-        for key in new_extended_info.keys():
-            value = new_extended_info[key]
+    input_extended_info = json_values.pop('extended_info', None)
+    new_extended_info = None
+    if input_extended_info is not None:
+        new_extended_info = {}
+        for key in input_extended_info.keys():
+            value = input_extended_info[key]
             if value is None or unicode(value) == '':
-                del new_extended_info[key]
+                del input_extended_info[key]
+            else:
+                tmp = SpotExtendedInfo(key=key, value=value)
+                new_extended_info[tmp.generate_key()] = {
+                    "key": key,
+                    "value": value,
+                }
+
+    input_future_extended_info = json_values.pop('future_extended_info', None)
+    if input_future_extended_info is not None:
+        if new_extended_info is None:
+            new_extended_info = {}
+        for ei in input_future_extended_info:
+            tmp = SpotExtendedInfo()
+            for key in ei:
+                value = ei[key]
+                if key == "valid_on":
+                    tmp.valid_on = parse_datetime(value)
+                elif key == "valid_until":
+                    tmp.valid_until = parse_datetime(value)
+                else:
+                    tmp.key = key
+                    tmp.value = value
+
+            if tmp.key is not None and tmp.value is not None:
+                new_extended_info[tmp.generate_key()] = {
+                    "key": tmp.key,
+                    "value": tmp.value,
+                    "valid_on": tmp.valid_on,
+                    "valid_until": tmp.valid_until,
+                }
 
     old_extended_info = {}
     if spot is not None:
-        old_extended_info = \
-            dict((ei.key, ei.value) for ei in spot.spotextendedinfo_set.all())
+        for ei in spot.spotextendedinfo_set.all():
+            old_extended_info[ei.generate_key()] = {
+                "key": ei.key,
+                "value": ei.value,
+                "valid_on": ei.valid_on,
+                "valid_until": ei.valid_until,
+            }
 
     stash['new_extended_info'] = new_extended_info
     stash['old_extended_info'] = old_extended_info
@@ -124,19 +162,28 @@ def _save_extended_info(sender, **kwargs):
         # first, loop over the new extended info and either:
         # - add items that are new
         # - update items that are old
-        for key in new_extended_info:
-            value = new_extended_info[key]
+        for composite_key in new_extended_info:
+            key = new_extended_info[composite_key]["key"]
+            value = new_extended_info[composite_key]["value"]
+            valid_on = new_extended_info[composite_key].get("valid_on", None)
+            valid_until = new_extended_info[composite_key].get("valid_until",
+                                                               None)
 
             ei = None
-            if key in old_extended_info:
-                if value == old_extended_info[key]:
+            if composite_key in old_extended_info:
+                if value == old_extended_info[composite_key]["value"]:
                     continue
                 else:
-                    ei = SpotExtendedInfo.objects.get(spot=spot, key=key)
+                    ei = SpotExtendedInfo.objects.get(spot=spot,
+                                                      key=key,
+                                                      valid_on=valid_on,
+                                                      valid_until=valid_until)
 
             eiform = SpotExtendedInfoForm({'spot': spot.pk,
                                            'key': key,
-                                           'value': value},
+                                           'value': value,
+                                           'valid_on': valid_on,
+                                           'valid_until': valid_until},
                                           instance=ei)
             if not eiform.is_valid():
                 raise RESTFormInvalidError(eiform)
@@ -144,10 +191,16 @@ def _save_extended_info(sender, **kwargs):
             ei = eiform.save()
         # Now loop over the different in the keys and remove old
         # items that aren't present in the new set
-        for key in (set(old_extended_info.keys()) -
-                    set(new_extended_info.keys())):
+        for composite_key in (set(old_extended_info.keys()) -
+                              set(new_extended_info.keys())):
             try:
-                ei = SpotExtendedInfo.objects.get(spot=spot, key=key)
+                key = old_extended_info[composite_key]["key"]
+                valid_on = old_extended_info[composite_key]["valid_on"]
+                valid_until = old_extended_info[composite_key]["valid_until"]
+                ei = SpotExtendedInfo.objects.get(spot=spot,
+                                                  key=key,
+                                                  valid_on=valid_on,
+                                                  valid_until=valid_until)
                 ei.delete()
             except SpotExtendedInfo.DoesNotExist:
                 # removing something that does not exist isn't an error

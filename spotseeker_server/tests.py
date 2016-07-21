@@ -81,3 +81,4 @@ from spotseeker_server.test.item.image_get import ItemImageGETTest
 from spotseeker_server.test.item.image_post import ItemImagePOSTTest
 from spotseeker_server.test.item.image_thumbnail import ItemImageThumbTest
 from spotseeker_server.test.future.future_get import FutureGETTest
+from spotseeker_server.test.future.future_put import FuturePUTTest
