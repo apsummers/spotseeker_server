@@ -79,3 +79,4 @@ from spotseeker_server.test.item.image_delete import ItemImageDELETETest
 from spotseeker_server.test.item.image_get import ItemImageGETTest
 from spotseeker_server.test.item.image_post import ItemImagePOSTTest
 from spotseeker_server.test.item.image_thumbnail import ItemImageThumbTest
+from spotseeker_server.test.future.future_get import FutureGETTest
