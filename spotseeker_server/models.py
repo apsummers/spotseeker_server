@@ -104,25 +104,6 @@ class Spot(models.Model):
     def rest_url(self):
         return reverse('spot', kwargs={'spot_id': self.pk})
 
-    def current_extended_info(self):
-        now = timezone.now()
-        current = ((Q(valid_on__lte=now) | Q(valid_on__isnull=True)) &
-                   (Q(valid_until__gte=now) | Q(valid_until__isnull=True)))
-
-        info = list(SpotExtendedInfo.objects.filter(spot=self).filter(current))
-        info.sort(SpotExtendedInfo.sort_method)
-
-        return info
-
-    def future_extended_info(self):
-        now = timezone.now()
-        future = (Q(valid_on__gte=now) | Q(valid_until__gte=now))
-
-        info = list(SpotExtendedInfo.objects.filter(spot=self).filter(future))
-        info.sort(SpotExtendedInfo.sort_method)
-
-        return info
-
     def json_data_structure(self):
         """
         Get a dictionary representing this spot which can be JSON encoded
@@ -134,12 +115,12 @@ class Spot(models.Model):
             return cached_entry
 
         extended_info = {}
-        info = self.current_extended_info()
+        info = self.get_current(SpotExtendedInfo)
         for attr in info:
             extended_info[attr.key] = attr.value
 
         future_extended_info = []
-        future = self.future_extended_info()
+        future = self.get_future(SpotExtendedInfo)
         for attr in future:
             data = {}
             data[attr.key] = attr.value
@@ -200,11 +181,12 @@ class Spot(models.Model):
             self.display_access_restrictions,
             "images": images,
             "available_hours": available_hours,
+            #"future_available_hours": future_available_hours,
             "organization": self.organization,
             "manager": self.manager,
             "extended_info": extended_info,
-            "items": checkout_items,
             "future_extended_info": future_extended_info,
+            "items": checkout_items,
             "last_modified": self.last_modified.isoformat(),
             "external_id": self.external_id
         }
@@ -246,6 +228,25 @@ class Spot(models.Model):
         else:
             return cls.objects.get(pk=spot_id)
 
+    def get_current(self, field):
+        now = timezone.now()
+        current = ((Q(valid_on__lte=now) | Q(valid_on__isnull=True)) &
+                   (Q(valid_until__gte=now) | Q(valid_until__isnull=True)))
+
+        info = list(field.objects.filter(spot=self).filter(current))
+        info.sort(field.sort_method)
+
+        return info
+
+    def get_future(self, field):
+        now = timezone.now()
+        future = (Q(valid_on__gte=now) | Q(valid_until__gte=now))
+
+        info = list(field.objects.filter(spot=self).filter(future))
+        info.sort(field.sort_method)
+
+        return info
+
 
 class FavoriteSpot(models.Model):
     """ A FavoriteSpot associates a User and Spot.
@@ -280,9 +281,10 @@ class SpotAvailableHours(models.Model):
 
     spot = models.ForeignKey(Spot)
     day = models.CharField(max_length=3, choices=DAY_CHOICES)
-
     start_time = models.TimeField()
     end_time = models.TimeField()
+    valid_on = models.DateTimeField(null=True, blank=True, db_index=True)
+    valid_until = models.DateTimeField(null=True, blank=True, db_index=True)
 
     class Meta:
         verbose_name_plural = "Spot available hours"
@@ -315,6 +317,72 @@ class SpotAvailableHours(models.Model):
                 h.delete()
         self.spot.save()  # Update the spot's last_modified
         super(SpotAvailableHours, self).save(*args, **kwargs)
+
+    @staticmethod
+    def sort_method(a, b):
+        def _is_full_window(a):
+            if a.valid_on and a.valid_until:
+                return True
+            return False
+
+        def _no_defined_dates(a):
+            if not a.valid_on and not a.valid_until:
+                return True
+            return False
+
+        def _fully_defined_window_comparison(a, b):
+            if _is_full_window(b):
+                # If both are fully defined, the nearest end date should
+                # by the more valued entry
+                if b.valid_until < a.valid_until:
+                    return -1
+                elif b.valid_until > a.valid_until:
+                    return 1
+
+                # If the end dates are the same, the one with the most
+                # recent start date is preferred
+                if b.valid_on > a.valid_on:
+                    return -1
+                elif b.valid_on < a.valid_on:
+                    return 1
+                return 0
+            else:
+                return 1
+
+        if _is_full_window(a):
+            return _fully_defined_window_comparison(a, b)
+
+        if _is_full_window(b):
+            return -1
+
+        # Both are missing at least one part of the window:
+        # Test to see if one (or both) of them is totally undefined
+        if _no_defined_dates(a):
+            if not _no_defined_dates(b):
+                return -1
+            return 0
+        if _no_defined_dates(b):
+            return 1
+
+        # if one has a defined end, and the other doesn't, that's preferred
+        if a.valid_until and not b.valid_until:
+            return 1
+
+        if b.valid_until and not a.valid_until:
+            return -1
+
+        # Now just choose the closest of whichever side is defined
+        if a.valid_until and b.valid_until:
+            if a.valid_until < b.valid_until:
+                return 1
+            if b.valid_until < a.valid_until:
+                return -1
+
+        if a.valid_on and b.valid_on:
+            if a.valid_on < b.valid_on:
+                return -1
+            if b.valid_on < a.valid_on:
+                return 1
 
 
 class SpotExtendedInfo(models.Model):

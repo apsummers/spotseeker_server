@@ -29,7 +29,7 @@ from django.utils import timezone
                                      'DefaultSpotExtendedInfoForm')
 @override_settings(SPOTSEEKER_AUTH_ADMINS=('demo_user',))
 class FuturePUTTest(TestCase):
-    """ Tests updating future Spot Extended information via PUT.
+    """ Tests updating future Spot fields via PUT.
     """
 
     def setUp(self):
