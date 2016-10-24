@@ -146,10 +146,16 @@ class Spot(models.Model):
             'sunday': [],
         }
 
-        hours = self.spotavailablehours_set.order_by('start_time')
-        for window in hours:
+        current_hours = self.get_current(SpotAvailableHours)
+        for window in current_hours:
             available_hours[window.get_day_display()].append(
                 window.json_data_structure())
+
+        full_available_hours = []
+
+        full_hours = SpotAvailableHours.objects.filter(spot=self)
+        for window in full_hours:
+            full_available_hours.append(window.full_json_data_structure())
 
         images_set = self.spotimage_set.order_by('display_index')
         images = [img.json_data_structure() for img in images_set]
@@ -181,7 +187,7 @@ class Spot(models.Model):
             self.display_access_restrictions,
             "images": images,
             "available_hours": available_hours,
-            #"future_available_hours": future_available_hours,
+            "full_available_hours": full_available_hours,
             "organization": self.organization,
             "manager": self.manager,
             "extended_info": extended_info,
@@ -299,6 +305,20 @@ class SpotAvailableHours(models.Model):
         return [self.start_time.strftime("%H:%M"),
                 self.end_time.strftime("%H:%M")]
 
+    def full_json_data_structure(self):
+        json = {
+            "start_time": self.start_time.strftime("%H:%M"),
+            "end_time": self.end_time.strftime("%H:%M")
+        }
+
+        if self.valid_on is not None:
+            json['valid_on'] = self.valid_on.isoformat()
+
+        if self.valid_until is not None:
+            json['valid_until'] = self.valid_until.isoformat()
+
+        return json
+
     def save(self, *args, **kwargs):
         self.full_clean()
 
@@ -310,8 +330,10 @@ class SpotAvailableHours(models.Model):
             day=self.day
         ).exclude(id=self.id)
         for h in other_hours:
-            if (h.start_time <= self.start_time <= h.end_time or
-                    self.start_time <= h.start_time <= self.end_time):
+            if ((h.start_time <= self.start_time <= h.end_time or
+                    self.start_time <= h.start_time <= self.end_time) and
+                    (self.valid_on == h.valid_on and
+                     self.valid_until == h.valid_until)):
                 self.start_time = min(h.start_time, self.start_time)
                 self.end_time = max(h.end_time, self.end_time)
                 h.delete()
@@ -320,69 +342,13 @@ class SpotAvailableHours(models.Model):
 
     @staticmethod
     def sort_method(a, b):
-        def _is_full_window(a):
-            if a.valid_on and a.valid_until:
-                return True
-            return False
-
-        def _no_defined_dates(a):
-            if not a.valid_on and not a.valid_until:
-                return True
-            return False
-
-        def _fully_defined_window_comparison(a, b):
-            if _is_full_window(b):
-                # If both are fully defined, the nearest end date should
-                # by the more valued entry
-                if b.valid_until < a.valid_until:
-                    return -1
-                elif b.valid_until > a.valid_until:
-                    return 1
-
-                # If the end dates are the same, the one with the most
-                # recent start date is preferred
-                if b.valid_on > a.valid_on:
-                    return -1
-                elif b.valid_on < a.valid_on:
-                    return 1
-                return 0
+        if(a.start_time != b.start_time):
+            if(b.start_time > a.start_time):
+                return -1
             else:
                 return 1
 
-        if _is_full_window(a):
-            return _fully_defined_window_comparison(a, b)
-
-        if _is_full_window(b):
-            return -1
-
-        # Both are missing at least one part of the window:
-        # Test to see if one (or both) of them is totally undefined
-        if _no_defined_dates(a):
-            if not _no_defined_dates(b):
-                return -1
-            return 0
-        if _no_defined_dates(b):
-            return 1
-
-        # if one has a defined end, and the other doesn't, that's preferred
-        if a.valid_until and not b.valid_until:
-            return 1
-
-        if b.valid_until and not a.valid_until:
-            return -1
-
-        # Now just choose the closest of whichever side is defined
-        if a.valid_until and b.valid_until:
-            if a.valid_until < b.valid_until:
-                return 1
-            if b.valid_until < a.valid_until:
-                return -1
-
-        if a.valid_on and b.valid_on:
-            if a.valid_on < b.valid_on:
-                return -1
-            if b.valid_on < a.valid_on:
-                return 1
+        return 0
 
 
 class SpotExtendedInfo(models.Model):
