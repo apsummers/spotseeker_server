@@ -12,7 +12,7 @@
 from django.test import TestCase
 from django.conf import settings
 from django.test.client import Client
-from spotseeker_server.models import Spot, SpotExtendedInfo
+from spotseeker_server.models import Spot, SpotExtendedInfo, SpotAvailableHours
 import simplejson as json
 from django.test.utils import override_settings
 from mock import patch
@@ -25,6 +25,7 @@ from django.utils import timezone
     SPOTSEEKER_SPOT_FORM='spotseeker_server.default_forms.spot.'
                          'DefaultSpotForm')
 class FutureGETTest(TestCase):
+
     def setUp(self):
         now = timezone.now()
         last_week = now - timedelta(days=7)
@@ -131,6 +132,97 @@ class FutureGETTest(TestCase):
 
         self.spot5 = spot5
 
+        spot6 = Spot.objects.create(name="Testing spot for AH",
+                                    latitude=23,
+                                    longitude=45)
+
+        SpotAvailableHours.objects.create(spot=spot6,
+                                          day="m",
+                                          start_time="11:00",
+                                          end_time="14:00")
+        SpotAvailableHours.objects.create(spot=spot6,
+                                          day="m",
+                                          start_time="00:00",
+                                          end_time="10:00",
+                                          valid_on=yesterday,
+                                          valid_until=next_week)
+        SpotAvailableHours.objects.create(spot=spot6,
+                                          day="t",
+                                          start_time="11:00",
+                                          end_time="14:00",
+                                          valid_on=yesterday,
+                                          valid_until=next_week)
+        SpotAvailableHours.objects.create(spot=spot6,
+                                          day="w",
+                                          start_time="11:00",
+                                          end_time="14:00",
+                                          valid_on=yesterday)
+        SpotAvailableHours.objects.create(spot=spot6,
+                                          day="th",
+                                          start_time="11:00",
+                                          end_time="14:00")
+        SpotAvailableHours.objects.create(spot=spot6,
+                                          day="f",
+                                          start_time="11:00",
+                                          end_time="14:00",
+                                          valid_on=yesterday,
+                                          valid_until=next_week)
+
+        SpotAvailableHours.objects.create(spot=spot6,
+                                          day="m",
+                                          start_time="11:00",
+                                          end_time="14:00",
+                                          valid_on=next_week)
+        SpotAvailableHours.objects.create(spot=spot6,
+                                          day="m",
+                                          start_time="00:00",
+                                          end_time="10:00",
+                                          valid_on=next_week)
+        SpotAvailableHours.objects.create(spot=spot6,
+                                          day="t",
+                                          start_time="11:00",
+                                          end_time="14:00",
+                                          valid_on=next_week)
+        SpotAvailableHours.objects.create(spot=spot6,
+                                          day="w",
+                                          start_time="11:00",
+                                          end_time="14:00",
+                                          valid_on=next_week)
+        SpotAvailableHours.objects.create(spot=spot6,
+                                          day="th",
+                                          start_time="11:00",
+                                          end_time="14:00",
+                                          valid_on=next_week)
+        SpotAvailableHours.objects.create(spot=spot6,
+                                          day="f",
+                                          start_time="11:00",
+                                          end_time="14:00",
+                                          valid_on=next_week)
+
+        self.spot6 = spot6
+
+    def compare_available_hours_json(self, hours_json, hours):
+        """Compares the avaiable hours JSON returned from the server
+        to the model."""
+
+        day_hours = hours_json[hours.get_day_display()]
+
+        for hour in day_hours:
+            if hour == hours.json_data_structure():
+                return True
+
+        return False
+
+    def compare_available_hours_full_json(self, full_hours_json, hours):
+        """Compares the full avaiable hours JSON returned from the server
+        to the model."""
+
+        for hour in full_hours_json:
+            if hour == hours.full_json_data_structure():
+                return True
+
+        return False
+
     def test_spot_past_extended_info(self):
         url = "/api/v1/spot/%s" % self.spot1.pk
         response = self.client.get(url)
@@ -202,9 +294,32 @@ class FutureGETTest(TestCase):
 
         self.assertEquals(len(spot_dict['future_extended_info']), 2)
 
+    def test_available_hours(self):
+        url = "/api/v1/spot/%s" % self.spot6.pk
+        response = self.client.get(url)
+        spot_dict = json.loads(response.content)
+
+        current_hours = self.spot6.get_current(SpotAvailableHours)
+        full_hours = SpotAvailableHours.objects.filter(spot=self.spot6)
+
+        current_hours_json = spot_dict['available_hours']
+        full_hours_json = spot_dict['full_available_hours']
+
+        # ensure that we are getting the correct data
+        for hours in current_hours:
+            match = self.compare_available_hours_json(current_hours_json,
+                                                      hours)
+            self.assertTrue(match)
+
+        for hours in full_hours:
+            match = self.compare_available_hours_full_json(full_hours_json,
+                                                           hours)
+            self.assertTrue(match)
+
     def tearDown(self):
         self.spot1.delete()
         self.spot2.delete()
         self.spot3.delete()
         self.spot4.delete()
         self.spot5.delete()
+        self.spot6.delete()
