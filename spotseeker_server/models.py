@@ -174,6 +174,20 @@ class Spot(models.Model):
         cache.set(self.pk, spot_json)
         return spot_json
 
+    def json_data_structure_v2(self):
+        """
+        Get a dictionary representing this spot which can be JSON encoded
+        """
+        # No cache
+        spot_json = {
+            "id": self.pk,
+            "etag": self.etag,
+            "building_name": self.building_name,
+            "latitude": self.latitude,
+            "longitude": self.longitude,
+        }
+        return spot_json
+
     def update_rating(self):
         data = self.spacereview_set.filter(
             is_published=True, is_deleted=False

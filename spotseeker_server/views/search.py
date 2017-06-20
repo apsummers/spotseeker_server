@@ -35,6 +35,7 @@ from decimal import *
 from time import *
 from datetime import datetime
 import sys
+import cPickle as pickle
 
 
 class SearchView(RESTDispatch):
@@ -48,15 +49,44 @@ class SearchView(RESTDispatch):
 
     @app_auth_required
     def GET(self, request):
+        experimental = None
+        # FILESTORAGE = []
         chain = SearchFilterChain(request)
+        # start = datetime.now()
+        if "request-experimental" in request.GET:
+            experimental = 1
         spots = self.filter_on_request(
             request.GET, chain, request.META, 'spot')
-
+        # end = datetime.now()
+        # Total time taken by Q
+        # FILESTORAGE.append(str((end - start).total_seconds()))
         response = []
-        for spot in spots:
-            response.append(spot.json_data_structure())
-
-        return JSONResponse(response)
+        # counter = 0
+        start = datetime.now()
+        if experimental is None:
+            for spot in spots:
+                result = spot.json_data_structure()
+                response.append(result)
+                # counter += sys.getsizeof(pickle.dumps(result))
+        else:
+            for spot in spots:
+                response.append(spot.json_data_structure_v2())
+        end = datetime.now()
+        # Total time taken by dict
+        # FILESTORAGE.append(str((end - start).total_seconds()))
+        # Total bytes taken by dict
+        # FILESTORAGE.append(str(counter))
+        # start = datetime.now()
+        json_response = JSONResponse(response)
+        # end = datetime.now()
+        # Total time taken by json
+        # FILESTORAGE.append(str((end - start).total_seconds()))
+        # Total bytes taken by json
+        # FILESTORAGE.append(str(sys.getsizeof(pickle.dumps(json_response))))
+        # FILE = open("FILESTORAGE", "a")
+        # FILE.write(str(FILESTORAGE))
+        # import pdb; pdb.set_trace()
+        return json_response
 
     def distance(self, spot, longitude, latitude):
         g = Geod(ellps='clrk66')
@@ -111,6 +141,8 @@ class SearchView(RESTDispatch):
             if key.startswith('oauth_'):
                 pass
             elif key == 'campus':
+                pass
+            elif key == 'request-experimental':
                 pass
             elif chain.filters_key(key):
                 # this needs to happen early, before any
@@ -463,8 +495,8 @@ class SearchView(RESTDispatch):
             sorted_list = sorted(query, key=sortfunc)
             query = sorted_list[:limit]
 
-        spots = set(query)
-        spots = chain.filter_results(spots)
+        # spots = set(query)
+        spots = chain.filter_results(set(query))
 
         return spots
 
