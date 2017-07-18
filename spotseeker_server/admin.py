@@ -22,7 +22,7 @@
 from django.db import models
 from django.contrib import admin
 from django.conf import settings
-from django.utils.importlib import import_module
+from importlib import import_module
 from spotseeker_server.models import *
 from spotseeker_server.forms.spot import SpotForm, SpotExtendedInfoForm
 from spotseeker_server.forms.item import ItemForm, ItemExtendedInfoForm

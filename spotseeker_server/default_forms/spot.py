@@ -34,6 +34,7 @@ class DefaultSpotExtendedInfoForm(forms.ModelForm):
 
     class Meta:
         model = SpotExtendedInfo
+        fields = '__all__'
 
     def clean_key(self):
         key = self.cleaned_data['key'].strip()
@@ -48,6 +49,7 @@ class DefaultSpotForm(forms.ModelForm):
     class Meta:
         model = Spot
         exclude = ('etag', 'last_modified')
+        fields = '__all__'
 
     validated_extended_info = {}
 

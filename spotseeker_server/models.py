@@ -83,7 +83,7 @@ class Spot(models.Model):
     organization = models.CharField(max_length=50, blank=True)
     manager = models.CharField(max_length=50, blank=True)
     etag = models.CharField(max_length=40)
-    last_modified = models.DateTimeField(auto_now=True, auto_now_add=True)
+    last_modified = models.DateTimeField(auto_now=True)
     external_id = models.CharField(max_length=100, null=True, blank=True,
                                    default=None, unique=True,
                                    validators=[validate_slug])
