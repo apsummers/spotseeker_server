@@ -15,8 +15,7 @@
 from django.conf import settings
 from django.test import TestCase
 from django.test.client import Client
-from django.test.utils import override_settings
-from django.utils.unittest import skipUnless
+from django.test.utils import override_settings, skipUnless
 from spotseeker_server.models import Spot, SpotExtendedInfo
 import json
 

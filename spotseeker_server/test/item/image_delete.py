@@ -15,8 +15,7 @@ from django.test.client import Client
 from django.core.files import File
 from spotseeker_server.models import Item, ItemImage
 from os.path import abspath, dirname, isfile
-from django.test.utils import override_settings
-from django.utils.unittest import skipUnless
+from django.test.utils import override_settings, skipUnless
 from mock import patch
 from django.core import cache
 from spotseeker_server import models

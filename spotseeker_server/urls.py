@@ -20,7 +20,7 @@
         support.
 """
 
-from django.conf.urls import patterns, include, url
+from django.conf.urls import include, url
 from django.views.decorators.csrf import csrf_exempt
 from spotseeker_server.views.buildings import BuildingListView
 from spotseeker_server.views.spot import SpotView
@@ -40,7 +40,7 @@ from spotseeker_server.views.item_image import ItemImageView
 from spotseeker_server.views.add_item_image import AddItemImageView
 from spotseeker_server.views.item_thumbnail import ItemThumbnailView
 
-urlpatterns = patterns('',
+urlpatterns =[
                        url(r'v1/null$', csrf_exempt(NullView().run)),
                        url(r'v1/spot/(?P<spot_id>(\d+|external:[\w-]+))$',
                            csrf_exempt(SpotView().run), name='spot'),
@@ -102,4 +102,4 @@ urlpatterns = patterns('',
                            csrf_exempt(SharedSpaceReferenceView().run)),
                        url(r'v1/reviews/unpublished$',
                            csrf_exempt(UnpublishedReviewsView().run)),
-                       )
+                       ]
