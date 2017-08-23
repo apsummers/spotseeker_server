@@ -367,12 +367,12 @@ class SpotImage(models.Model):
         self.content_type = SpotImage.CONTENT_TYPES[img.format]
         self.width, self.height = img.size
 
-        self.spot.invalidate_cache()
+        self.spot.save()
         super(SpotImage, self).save(*args, **kwargs)
 
     @update_etag
     def delete(self, *args, **kwargs):
-        self.spot.invalidate_cache()
+        self.spot.save()
         self.image.delete(save=False)
         super(SpotImage, self).delete(*args, **kwargs)
 
@@ -490,6 +490,11 @@ class Item(models.Model):
 
         return data
 
+    def save(self, *args, **kwargs):
+        self.spot.save()
+
+        super(Item, self).save(*args, **kwargs)
+
 
 class ItemExtendedInfo(models.Model):
     item = models.ForeignKey(Item, blank=True, null=True)
@@ -499,6 +504,11 @@ class ItemExtendedInfo(models.Model):
     class Meta:
         verbose_name_plural = "Item extended info"
         unique_together = ('item', 'key')
+
+    def save(self, *args, **kwargs):
+        self.item.spot.save()
+
+        super(ItemExtendedInfo, self).save(*args, **kwargs)
 
 
 class ItemImage(models.Model):
@@ -565,6 +575,8 @@ class ItemImage(models.Model):
 
         self.content_type = ItemImage.CONTENT_TYPES[img.format]
         self.width, self.height = img.size
+
+        self.item.save()
 
         super(ItemImage, self).save(*args, **kwargs)
 
