@@ -52,9 +52,7 @@ class SearchView(RESTDispatch):
         spots = self.filter_on_request(
             request.GET, chain, request.META, 'spot')
 
-        response = []
-        for spot in spots:
-            response.append(spot.json_data_structure())
+        response = Spot.get_spot_set_json(spots)
 
         return JSONResponse(response)
 

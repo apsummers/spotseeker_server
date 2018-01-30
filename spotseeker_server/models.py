@@ -22,7 +22,7 @@
         extended info (spot, key); re-work SpotImage save so that the
         proper exception is thrown on an invalid image type.
 """
-
+from django.conf import settings
 from django.db import models
 from django.db.models import Sum, Count
 from django.core.cache import cache
@@ -41,6 +41,7 @@ from PIL import Image
 import oauth_provider.models
 import re
 from functools import wraps
+from spotseeker_server.cache import redis_cache
 
 
 def update_etag(func):
@@ -210,6 +211,18 @@ class Spot(models.Model):
             return cls.objects.get(external_id=spot_id[9:])
         else:
             return cls.objects.get(pk=spot_id)
+
+    @classmethod
+    def get_spot_set_json(cls, spots):
+        set_json = []
+
+        if getattr(settings, "REDIS_CACHE_ENABLED", False):
+            set_json = redis_cache.get_json(spots)
+        else:
+            for spot in spots:
+                set_json.append(spot.json_data_structure())
+
+        return set_json
 
 
 class FavoriteSpot(models.Model):

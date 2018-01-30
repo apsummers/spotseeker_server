@@ -15,6 +15,9 @@ setup(name='SpaceScout-Server',
                         'South',
                         'simplejson>=2.1',
                         'django-oauth-plus<=2.2.5',
-                        'phonenumbers'
+                        'phonenumbers',
+                        'redis',
+                        'hiredis',
+                        'fakeredis'
                        ],
      )
