@@ -94,12 +94,11 @@ def _has_valid_settings():
     returns True if the settings are valid and False if they are not
     """
     host = getattr(settings, "REDIS_HOSTNAME", None)
-    password = getattr(settings, "REDIS_PASSWORD", None)
 
-    if host is None or password is None:
+    if host is None:
         return False
 
-    if not isinstance(password, basestring):
+    if not isinstance(host, basestring):
         return False
 
     return True
@@ -115,7 +114,6 @@ def _get_redis_connection():
         return None
 
     host = getattr(settings, "REDIS_HOSTNAME", None)
-    password = getattr(settings, "REDIS_PASSWORD", None)
 
     try:
         client = redis.StrictRedis(host=host, socket_timeout=1)
