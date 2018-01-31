@@ -13,6 +13,10 @@ def get_json(spots):
     :param spots: A QueryList of Spot models
     :return: a list of Spot JSON dictionaries
     """
+
+    if isinstance(spots, set):
+        spots = list(spots)
+
     spot_json = []
 
     if redis_client is None:
