@@ -2,6 +2,7 @@ import simplejson as json
 import logging
 import redis
 from django.conf import settings
+from redis import TimeoutError
 
 logger = logging.getLogger(__name__)
 
@@ -15,10 +16,7 @@ def get_json(spots):
     spot_json = []
 
     if redis_client is None:
-
-        for spot in spots:
-            spot_json.append(spot.json_data_structure())
-
+        spot_json = _generate_json(spots)
     else:
         pipe = redis_client.pipeline()
         keys = _get_spots_cache_keys(spots)
@@ -26,7 +24,11 @@ def get_json(spots):
         for key in keys:
             pipe.exists(key)
 
-        results = pipe.execute()
+        try:
+            results = pipe.execute()
+        except TimeoutError as ex:
+            logger.error("Redis connection timed out!: %s" % ex)
+            return _generate_json(spots)
 
         to_query = []
         to_build = []
@@ -58,6 +60,10 @@ def get_json(spots):
         set_pipe.execute()
 
     return spot_json
+
+
+def _generate_json(spots):
+    return [spot.json_data_structure() for spot in spots]
 
 
 def _get_spot_cache_key(spot):
@@ -112,9 +118,8 @@ def _get_redis_connection():
     password = getattr(settings, "REDIS_PASSWORD", None)
 
     try:
-        client = redis.StrictRedis(host=host)
+        client = redis.StrictRedis(host=host, socket_timeout=1)
     except Exception as ex:
-        print ex
         logger.error("%s" % ex)
         return None
 
