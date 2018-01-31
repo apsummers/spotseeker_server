@@ -76,14 +76,10 @@ def _get_spots_cache_keys(spots):
     :param spots: a QuerySet of Spots
     :return: a list of the cache values in Spots
     """
-    ids_etags = spots.values('id', 'etag')
     keys = []
 
-    for dictionary in ids_etags:
-        id = dictionary['id']
-        etag = dictionary['etag']
-
-        keys.append("Spot:" + str(id) + ":" + etag + ":json")
+    for spot in spots:
+        keys.append("Spot:" + str(spot.id) + ":" + spot.etag + ":json")
 
     return keys
 
